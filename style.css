@@ -8,30 +8,17 @@ body{
 
 #blockchain-canvas{
 
-    display: inline-block;
-    background-color: burlywood;
+    /*background-color: burlywood;*/
     width: 60%;
     height: 100%;
+    float: left;
 }
 
-.miner{
-    flex-grow: 1;
-    background-color: cadetblue;
-}
-
-#left-miners, #right-miners{
-    display:flex;
-    flex-direction: column;
-    width: 20%;
+#json-window{
+    width: 40%;
     height: 100%;
-}
-
-/* This is a bit hardcoded*/
-#left-miners{
-    float:left;
-}
-
-#right-miners{
-    float:right;
+    float: right;
+    background-color:darkgoldenrod;
+    margin: 0;
 }
 

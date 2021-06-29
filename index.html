@@ -9,22 +9,13 @@
 </head>
 
 <body>
-
-
-
-    <div id='left-miners'>
-        <div class='miner' id = 'test'>1</div>
-    </div>
-
     
-    <canvas width = 1200 height = 900 id='blockchain-canvas'>canvas</canvas>
+    <canvas width = 1200 height = 900 id='blockchain-canvas' onmousemove= mouseHandler(event)></canvas>
+    <pre id = 'json-window'></pre>
 
-    <div id='right-miners'>
-        <div class='miner'>5</div>
-
-    </div>
-
+    <script src = 'rendering.js'></script>
     <script src = 'tempFinalCode.js'></script>
+    <script src = 'Block.js'></script>
     <script src = app.js></script>
 </body>
 

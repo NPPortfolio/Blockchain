@@ -1,5 +1,10 @@
 let SC = window.crypto.subtle;
 
+let gl = createGLContext("blockchain-canvas");
+
+// testing 
+let block_list = [];
+
 class User {
 
     constructor() {
@@ -23,13 +28,11 @@ class User {
 
     startMining() {
         this.should_mine = true;
-        this.updateDOMproperties();
         this.mine();
     }
 
     stopMining() {
         this.should_mine = false;
-        this.updateDOMproperties();
     }
 
     mine() {
@@ -64,85 +67,15 @@ class User {
             // You cant always just add it to the target block in case it was changed while mining,
             // have to find the block again by hash (or rewrite mining function to keep track of block TODO)
             addChildToChain(this.chain_origin, result);
+            block_list.push(result);
+            drawTree(this.chain_origin);
 
             // not optimized
             this.target_block = findDeepestNode(this.chain_origin);
             this.mine();
         }
     }
-
-
-    // UI
-    updateDOMproperties() {
-        this.DOM_element.innerHTML =
-            this.name + "\n" +
-            (this.is_mining ? "Mining" : "Idle") +
-            "\n";
-    }
 }
-
-class Block {
-
-    constructor() {
-
-        this.hash = '';
-
-        // Contents that are hashed
-        this.previous_hash = '';
-        this.message = '';
-        this.nonce = '';
-        // ------------------------
-
-        this.children = [];
-
-    }
-
-    // This is the data that is hashed to give each block a unique hash, can add more stuff to it as I go
-    getHeader() {
-        return this.previous_hash + this.message + this.nonce;
-    }
-
-    getHashString() {
-        return this.hash;
-    }
-
-    // Create a string representation of an ArrayBuffer hash, called when the async hashString function is done
-    createHashString(buf) {
-        this.hash = buf2HexString(buf);
-    }
-
-    addChild(block) {
-
-        this.children.push(block);
-
-
-        drawTree(ctx, Origin);
-        /*
-        console.log("START OF TREE -------------------------------------------------------------");
-        this.logTree();
-        console.log("END OF TREE ---------------------------------------------------------------")
-        */
-    }
-
-    log() {
-        console.log("-------------------------------------");
-        console.log("Previous hash: " + this.previous_hash);
-        console.log("Message: " + this.message);
-        console.log("nonce: " + this.nonce);
-        console.log("hash: " + this.hash);
-        console.log("-------------------------------------");
-    }
-
-    logTree() {
-        this.log();
-        for (let i = 0; i < this.children.length; i++) {
-            this.children[i].logTree();
-        }
-    }
-}
-
-
-
 
 
 
@@ -191,7 +124,7 @@ function findDeepestNode(root) {
     function recursiveTest(current_block, current_depth) {
 
 
-        if(current_depth > max_level){
+        if (current_depth > max_level) {
             max_level = current_depth;
             deepest_node = current_block;
         }
@@ -217,19 +150,19 @@ function findDeepestNode(root) {
 
 
 
-function treeDepth(root){
+function treeDepth(root) {
 
     let deepest = -1;
 
-    function recursiveTest(current_block, current_depth){
+    function recursiveTest(current_block, current_depth) {
 
-        if(current_block.children.length != 0){
-            for(let i = 0; i < current_block.children.length; i++){
+        if (current_block.children.length != 0) {
+            for (let i = 0; i < current_block.children.length; i++) {
                 recursiveTest(current_block.children[i], current_depth + 1);
             }
         }
 
-        else if(current_depth > deepest){
+        else if (current_depth > deepest) {
             deepest = current_depth;
         }
     }
@@ -367,16 +300,12 @@ Origin.data = 'hello world';
 let A = new User();
 A.name = 'Alfonso';
 A.target_block = Origin;
-A.updateDOMproperties();
-document.body.appendChild(A.DOM_element);
 A.chain_origin = Origin;
 
 
 let B = new User();
 B.name = "Bert";
 B.target_block = Origin;
-B.updateDOMproperties();
-document.body.appendChild(B.DOM_element);
 B.chain_origin = Origin;
 
 
@@ -388,6 +317,9 @@ p.then(
 
     result => {
         Origin.createHashString(result);
+
+        block_list.push(Origin);
+        drawTree(Origin);
 
         A.startMining();
         B.startMining();
@@ -410,55 +342,105 @@ p.then(
 
 
 
-let canvas = document.getElementById('blockchain-canvas');
-let ctx = canvas.getContext('2d');
+
+// testing
+const UI_SQUARE_CLIP_SIZE = 0.05;
 
 
 
-// This function can probably be improved a lot , could fix later or scrap
-function drawTree(context, root){
-
-    let max_depth = treeDepth(root);   
+function drawTree(root) {
 
 
-    context.clearRect(0, 0, canvas.width, canvas.height);
 
-    // draw this
-    // draw a line to children
-
-    function recursiveDraw(current_node, depth, num_blocks_on_row, current_index, parent_width, total_canvas_offset){
+    let gl_data = createInstancedSquaresFromTree(root);
 
 
-        let vertical_position = (depth/max_depth) * (canvas.height - 20);
+    gl.bindBuffer(gl.ARRAY_BUFFER, translationBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(gl_data.translations), gl.DYNAMIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(gl_data.colors), gl.DYNAMIC_DRAW);
+
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
+    gl.drawArraysInstanced(gl.LINE_LOOP, 0, 4, gl_data.translations.length / 2);
+
+    /**
+    * 
+    * TODO: rewrite or fix this function with a much better tree drawing algorithm
+    * 
+    * 
+    * 
+    * This function creates the clip space translations (and colors, todo remove) for a given tree root
+    * The root clip space coordiantes are (0.5, 1), centered at the top of the clip space
+    * The algorithm then recursively calculates the children node translations to fit them to the clip space
+    * 
+    * Each child can only take up the space that is allocated to its parent based on the number of siblings a parent has,
+    * which is not ideal and something to fix with a better tree drawing algorithm in the future
+    * --right now this is mostly used for debugging
+    */
+    function createInstancedSquaresFromTree(root) {
+
+        let max_depth = treeDepth(root);
+
+        // draw this
+        // draw a line to children
+
+        let translations = [];
+        let colors = [];
+
+        function recursiveDraw(current_node, depth, num_blocks_on_row, current_index, parent_width_fraction, total_canvas_offset) {
 
 
-        let horizontal_multiplier = (current_index/(num_blocks_on_row + 1));
-        let horizontal_position = (horizontal_multiplier * parent_width) + total_canvas_offset; 
+            // clip space
+            let vertical_position = -(2 - UI_SQUARE_CLIP_SIZE) * (depth / max_depth) + 1;
 
-        context.beginPath();
-        context.rect(horizontal_position, vertical_position, 20, 20);
-        context.stroke();
+            // also should have ui square clip size for horizontal, debug function for now
+            let horizontal_multiplier = (current_index / (num_blocks_on_row + 1));
 
-        // The children array should always be initialized to empty
-        for(let i = 0; i < current_node.children.length; i++){
-            
-            recursiveDraw(
-                current_node.children[i],
-                depth + 1,
-                current_node.children.length,
-                i + 1, // reason for this explain
-                (1/num_blocks_on_row) * parent_width,
-                (current_index - 1) * (1/num_blocks_on_row) * parent_width + total_canvas_offset
-            );
-            
+            // This is between 0 and 1;
+            let x = (horizontal_multiplier * parent_width_fraction) + total_canvas_offset;
+
+            // This is in clip coordinates, from -1 to 1;
+            let horizontal_position = 2 * x - 1;
+
+            // question here about functional programming, shouldn't have any changes, could fix
+            current_node.nd_coords = [horizontal_position, vertical_position];
+
+            translations.push(horizontal_position, vertical_position);
+            colors.push(0, 1, 1, 1);
+
+            // The children array should always be initialized to empty
+            for (let i = 0; i < current_node.children.length; i++) {
+
+
+                recursiveDraw(
+                    current_node.children[i],
+                    depth + 1,
+                    current_node.children.length,
+                    i + 1, // reason for this explain
+                    (1 / num_blocks_on_row) * parent_width_fraction,
+                    (current_index - 1) * (1 / num_blocks_on_row) * parent_width_fraction + total_canvas_offset
+                );
+
+            }
+
+
         }
 
+        recursiveDraw(root, 0, 1, 1, 1, 0);
+
+
+        return {
+            translations: translations,
+            colors: colors
+        }
 
     }
-
-    recursiveDraw(root, 0, 1, 1, canvas.width - 20, 0);
-
 }
+
+
 
 
 let test_root = new Block();
@@ -474,10 +456,15 @@ let c23 = new Block();
 let a31 = new Block();
 let a32 = new Block();
 
+//let block_list = [test_root, a1, b1, c1, a21, a22, b2, c21, c22, c23, a31, a32];
+
 
 test_root.addChild(a1);
 test_root.addChild(b1);
 test_root.addChild(c1);
+test_root.message = "json testing";
+
+console.log(JSON.stringify(test_root));
 
 a1.addChild(a21);
 a1.addChild(a22);
@@ -491,31 +478,87 @@ c1.addChild(c23);
 a21.addChild(a31);
 a21.addChild(a32);
 
-drawTree(ctx, test_root);
+//////////////////////////////////////////////////////////////////////////////////////
+
+const program = initShaderProgram(gl, vsSource, fsSource);
+
+gl.useProgram(program);
+
+// Create locations and buffers
+const positionLoc = gl.getAttribLocation(program, 'a_position');
+const translationLoc = gl.getAttribLocation(program, 'translation');
+const colorLoc = gl.getAttribLocation(program, 'color');
+
+const positionBuffer = gl.createBuffer();
+const translationBuffer = gl.createBuffer();
+const colorBuffer = gl.createBuffer();
+
+// Set the parameters for each attribute
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.enableVertexAttribArray(positionLoc);
+gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+gl.bindBuffer(gl.ARRAY_BUFFER, translationBuffer);
+gl.enableVertexAttribArray(translationLoc);
+gl.vertexAttribPointer(translationLoc, 2, gl.FLOAT, false, 0, 0);
+
+gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+gl.enableVertexAttribArray(colorLoc);
+gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0);
+
+gl.vertexAttribDivisor(translationLoc, 1);
+gl.vertexAttribDivisor(colorLoc, 1);
+
+// Buffer data that is not decided at runtime
+const square_vertices = new Float32Array([0, 0, UI_SQUARE_CLIP_SIZE, 0, UI_SQUARE_CLIP_SIZE, -UI_SQUARE_CLIP_SIZE, 0, -UI_SQUARE_CLIP_SIZE]);
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, square_vertices, gl.STATIC_DRAW);
+
+
+
+//drawTree(test_root);
+
+
+ 
 
 
 
 
+function mouseHandler(e) {
+
+    let canvas = document.getElementById('blockchain-canvas');
+
+    let rect = canvas.getBoundingClientRect();
+
+    let ndc_x = ((2 * (e.clientX - rect.left)) / rect.width) - 1;
+    let ndc_y = - (((2 * (e.clientY - rect.top)) / rect.height) - 1);
+
+    for (let i = 0; i < block_list.length; i++) {
+        if (isMouseOverBlock(ndc_x, ndc_y, block_list[i], UI_SQUARE_CLIP_SIZE)) {
+            // warning, this does this every time the mouse is moved over the block, could fix if performance matters
+            document.getElementById('json-window').innerHTML = block_list[i].customJSONString();
+        }
+    }
+}
 
 
 
+function isMouseOverBlock(mouse_ndx, mouse_ndy, block, ui_clip_size) {
 
+    let left_wall = block.nd_coords[0];
+    let right_wall = block.nd_coords[0] + ui_clip_size;
+    let top = block.nd_coords[1];
+    let bottom = block.nd_coords[1] - ui_clip_size;
 
+    if (mouse_ndx >= left_wall && mouse_ndx <= right_wall) {
+        if (mouse_ndy >= bottom && mouse_ndy <= top) {
+            return true;
+        }
+    }
 
+    return false;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 
@@ -557,6 +600,9 @@ drawTree(ctx, test_root);
 
 
 
+
+
+// Might end up not using private and public keys, keep here for now
 
 let ECDSA_obj = {
     name: "ECDSA",
