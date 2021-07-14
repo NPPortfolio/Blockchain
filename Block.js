@@ -34,7 +34,7 @@ class Block {
 
     // Create a string representation of an ArrayBuffer hash, called when the async hashString function is done
     createHashString(buf) {
-        this.hash = buf2HexString(buf);
+        this.hash = BUFtoHEX(buf);
     }
 
     addChild(block) {

@@ -1,7 +1,3 @@
-let SC = window.crypto.subtle;
-
-let gl = createGLContext("blockchain-canvas");
-
 // testing 
 let block_list = [];
 
@@ -104,7 +100,7 @@ function findBlockByHash(current_block, block_hash) {
             let result = findBlockByHash(current_block.children[i], block_hash);
 
             if (result != null) {
-                return result
+                return result;
             }
         }
 
@@ -179,7 +175,40 @@ function treeDepth(root) {
 
 
 
+///////////////////////Lecture notes////////////////////////////
+/**
 
+
+Private key sign() message
+
+verify(public key, message, sig)
+
+block header: message which must satisfy proof of work
+headers have a hash of the transactions in the block
+main components: prev hash, merkle root, nonce
+
+merkle root: could concat all transactions then hash, but is used to prove transaction was in block without giving whole block
+
+main reason for time is to adjust the difficulty - changed every 2016 blocks (2 weeks)
+
+utxo db - validate all inputs, delete inputs
+ - keys are the (txid, index) value is output
+ - validate these transactions exist, siognature is correct
+
+replay the history of the last 9 years of the coin to get utxo set 
+
+
+
+
+
+
+
+
+
+
+dffg
+ */
+////////////////////////////////////////////////////////////////
 
 
 
@@ -216,10 +245,9 @@ async function tryRandomNonce(previous_hash, message, target) {
 
     // Not very efficient to go from Uint32Array to arraybuffer to string,
     // but crypto.getRandomValues needs a typed array
-    // could also rename function to return hex string
-    let nonce = buf2HexString(random32bitNonce().buffer);
+    let nonce = BUFtoHEX(random32bitNonce().buffer);
 
-    const digest = await hashString(previous_hash + message + nonce);
+    const digest = await hashUTF16String(previous_hash + message + nonce);
 
     if (testProofOfWork(digest, target)) {
 
@@ -228,39 +256,10 @@ async function tryRandomNonce(previous_hash, message, target) {
         result.previous_hash = previous_hash;
         result.message = message;
         result.nonce = nonce;
-        result.hash = buf2HexString(digest);
+        result.hash = BUFtoHEX(digest);
     }
 
     return result;
-}
-
-
-
-
-
-
-/**
- * Returns a 256Bit ArrayBuffer representing a number that is one larger than the largest binary number with the given number of leading zeroes
- * 
- * @param {int} num_leading_zeroes range from 1-256, 
- */
-function create256BitTargetBuffer(num_leading_zeroes) {
-
-    // could clamp here to ensure range
-
-    let buf = new ArrayBuffer(32); // 32 bytes
-
-    let view = new Uint8Array(buf);
-
-    // From what I can tell you cant directly flip a single bit in an array buffer, need to operate in chunks of the given TypedArray
-    let uint8_index = Math.floor((num_leading_zeroes - 1) / 8);
-
-    // index of bit to flip in the uint8 chunk, from left to right
-    let bit_index = Math.floor((num_leading_zeroes - 1) % 8);
-
-    view[uint8_index] = Math.pow(2, 7 - bit_index);
-
-    return view.buffer;
 }
 
 
@@ -273,18 +272,6 @@ function logBufferUint8(buf) {
     console.log(view);
 }
 
-function buf2HexString(buf) {
-
-    let result = '';
-
-    let view = new Uint8Array(buf);
-
-    for (let i = 0; i < view.length; i++) {
-        result += view[i].toString(16).padStart(2, '0');
-    }
-
-    return result;
-}
 
 
 
@@ -311,7 +298,7 @@ B.chain_origin = Origin;
 
 
 
-let p = hashString(Origin.getHeader());
+let p = hashUTF16String(Origin.getHeader());
 
 p.then(
 
@@ -336,10 +323,9 @@ p.then(
 
 
 
-
-
 //------------------------------RENDERING-----------------------------------------------
 
+let gl = createGLContext("blockchain-canvas");
 
 
 
@@ -363,7 +349,7 @@ function drawTree(root) {
 
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    
+
     gl.drawArraysInstanced(gl.LINE_LOOP, 0, 4, gl_data.translations.length / 2);
 
     /**
@@ -464,8 +450,6 @@ test_root.addChild(b1);
 test_root.addChild(c1);
 test_root.message = "json testing";
 
-console.log(JSON.stringify(test_root));
-
 a1.addChild(a21);
 a1.addChild(a22);
 
@@ -519,7 +503,7 @@ gl.bufferData(gl.ARRAY_BUFFER, square_vertices, gl.STATIC_DRAW);
 //drawTree(test_root);
 
 
- 
+
 
 
 
@@ -558,66 +542,4 @@ function isMouseOverBlock(mouse_ndx, mouse_ndy, block, ui_clip_size) {
 
     return false;
 
-}
-
-
-
-
-
-//-------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Might end up not using private and public keys, keep here for now
-
-let ECDSA_obj = {
-    name: "ECDSA",
-    namedCurve: "P-384"
-}
-
-const key_pair1 = SC.generateKey(ECDSA_obj, true, ["sign", "verify"]);
-
-key_pair1.then((key) => {
-
-    exportCryptoKey(key.publicKey);
-});
-
-async function exportCryptoKey(key) {
-    const exported = await SC.exportKey("raw", key);
-    const exportedKeyBuffer = new Uint8Array(exported);
-    //console.log(exportedKeyBuffer);
 }
