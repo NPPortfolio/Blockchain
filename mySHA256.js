@@ -1,4 +1,6 @@
 
+// This is unused right now, will probably delete
+
 // Using qvault "how sha-2 works step by step" tutorial
 function myHash(str) {
 
