@@ -72,91 +72,107 @@ class TXInput {
 
     async dataString() {
         //previous id + index + scriptSig
-        return this.tx_id + toByteLengthHexString(this.tx_index, 4) + BUFtoHEX(await window.crypto.subtle.exportKey('raw', this.pub_key)) + this.signature; // + ...
+        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + BUFtoHEX(await window.crypto.subtle.exportKey('raw', this.pub_key)) + this.signature; // + ...
     }
 
     rawDataString(utxo_db) {
-        return this.tx_id + toByteLengthHexString(this.tx_index, 4) + utxo_db.get(this.dbKey()).pub_key_hash;
+        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + utxo_db.get(this.dbKey()).pub_key_hash;
     }
 
     dbKey() {
-        return this.tx_id + toByteLengthHexString(this.tx_index, 4);
+        return this.tx_id + intToByteLengthHexString(this.tx_index, 4);
     }
 }
 
 class TXOutput {
 
-    constructor(value, pub_key_hash) {
-        this.value = value; // 8 bytes, integer
+    constructor(amount, pub_key_hash){
+        this.amount = amount;
         this.pub_key_hash = pub_key_hash;
     }
 
-    dataString() {
-        return toByteLengthHexString(this.value, 8) + this.pub_key_hash;
+    dataString(){
+        return this.amount + this.pub_key_hash;
     }
 }
 
-// TODO: multiple inputs and outputs, add num to the transaction data
+
+
+
+
+// TODO/NOTE: could pass in the raw strings instead of he input and output objects, more work for client
+// but don't need the database and can more easily replace the string with the scriptsig
+
 // Important note: create the transaction hash with the signatures as the temporary old utxo pub keys, then re-fill the signatures
 // by signing the hash with the private key, and add the pub key paramter
 // https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx/
-async function createTransactionData(utxo_id, utxo_index, utxo_pub_key_hash, address_hash, amount, private_key, public_key) {
-
-
+async function createTransactionData(raw_inputs, new_outputs, utxo_db, private_key, public_key) {
 
     /**
-    eccf7e3034189b851985d871f91384b8ee357cd47c3024736e5676eb2debb3f2 tx hash
-    01000000 index
-    76a914010966776006953d5567439e5e39f86a0d273bee88ac    temporary, scriptPubKey, replace with sig + pub key
-    605af40500000000    Amount
-    76a914097072524438d003d23a2f23edb65aae1bb3e46988ac    actual scriptPubKey
-     */
+     * Raw Transaction Data:
+     * 
+     * 1 byte integer for number of inputs
+     * for each input:
+     * 32 byte hash of the transaction you want to redeem an output from
+     * 4 byte field of the index of the output from the above transaction
+     * 32 byte pub key hash of the utxo's address
+     * ^^ From the stack overflow link: "For the purpose of signing the transaction, 
+     * the scriptPubKey of the output we want to redeem is filled as the temporary script sig"
+     * 
+     * 1 byte integer for number of outputs
+     * for each output:
+     * 8 byte field for the amount of "satoshis" to send
+     * 32 byte address hash to send the "satoshis" to
+    */
+    let raw_transaction_data = '';
 
-    // need some kind of checking or spec for amount to be 8 bytes
-    // This is without all of the length bytes or opcode bytes, because this project limits to P2PKH and 1 input 1 output (should change 1 in 1 out eventually)
-    let raw_transaction_data =
-        utxo_id + // 32 byte hash of the transaction you want to redeem an output from
-        utxo_index + // 4 byte field denoting the index of the output from the above transaction
-        utxo_pub_key_hash + // From the stack overflow link: "For the purpose of signing the transaction, the scriptPubKey of the output we want to redeem is filled as the temporary script sig"
-        amount + // 8 byte field containing the amount we want to redeem from the specified output (tx id + index) for btc in satoshis
-        address_hash // this transaction's output, new pub key hash to pay to
-    ;
+    let num_inputs_hex = intToByteLengthHexString(raw_inputs.length, 1);
+    let num_outputs_hex = intToByteLengthHexString(new_outputs.length, 1);
+
+    raw_transaction_data += num_inputs_hex;
+
+    for(let i = 0; i < raw_inputs.length; i++){
+        raw_transaction_data += raw_inputs[i].rawDataString(utxo_db);
+    }
+
+    // output string doesn't change for final data, can save some time with this
+    let saved_output_string = '';
+    saved_output_string += num_outputs_hex;
+
+    raw_transaction_data += num_outputs_hex;
+    
+    for(let i = 0; i < new_outputs.length; i++){
+        raw_transaction_data += new_outputs.dataString();
+        saved_output_string += new_outputs.dataString();
+    }
 
     let raw_transaction_data_hash = await hashBuffer(HEXtoBUF(raw_transaction_data));
-
     let tx_signature = await signMessage(private_key, raw_transaction_data_hash);
 
-    // Could replace old string instead of constructing a new one
-    let final_transaction_data = 
-        utxo_id + 
-        utxo_index + 
-        BUFtoHEX(tx_signature) + // These two replace the temporary pub key hash in the raw transaction. Also, this is 64 bytes
-        public_key + // 32 bytes?
-        amount + 
-        address_hash
-    ;
+    //////////// Below this is where the final transaction data is created, maybe make another function ////////////
+
+    let final_transaction_data = '';
+
+    final_transaction_data += num_inputs_hex;
+
+    // Now you need to replace the temporary utxo pub key hashes in the input datastrings with the signature and public key (scriptSig)
+    for(let i = 0; i < raw_inputs.length; i++){
+        raw_inputs[i].signature = tx_signature;
+        raw_inputs[i].pub_key = public_key;
+        final_transaction_data += raw_inputs[i].dataString();
+    }
+
+    final_transaction_data += saved_output_string;
     
     return final_transaction_data;
-
-    /**
-    // Now that we signed the transaction, we can add the signatures to the inputs
-    let tx_in = new TXInput(utxo_id, utxo_index, public_key, tx_signature);
-    let tx_out = new TXOutput(amount, address_hash);
-
-    let tx = new Transaction();
-    tx.addInput(tx_in);
-    tx.addOutput(tx_out);
-
-    return tx;
-    */
 }
 
 // decode the transaction hex string, simple for now but need to account for multiple inputs and outputs eventually
-function createTransactionObject(tx_data){
+function transactionObjectFromData(tx_data){
 
     let tx = {
 
-        hash: '', // Important problem here
+        hash: '', // Important problem here, need to hash the raw data not the final one with script sigs
 
         inputs:[
 
@@ -174,6 +190,7 @@ function createTransactionObject(tx_data){
 
     for(let i = 0; i < num_inputs; i++){
         
+        // may need to be a TXInput here
         let obj = {
             tx_id: null,
             tx_index: null,
@@ -197,6 +214,7 @@ function createTransactionObject(tx_data){
 
     for(let i = 0; i < num_outputs; i++){
 
+        // May need to be a TXOutput here
         let obj = {
             amount: null,
             address_hash: null,
@@ -235,12 +253,6 @@ async function verifyTransaction(tx, utxo_db) {
     if (!verifyInputs(tx)) {
         // A few possible errors here, the utxo might not exist in the DB, or the signature might not be valid
     }
-    //console.log(await test_tx.dataString());
-    //console.log(BUFtoHEX(hash_to_test));
-
-
-    // just the first input for testing, need to test all of them i guess
-    //return await verifyMessage(sig_pubkey_pairs_to_test[0].pub_key, sig_pubkey_pairs_to_test[0].sig, hash_to_test);
 }
 
 

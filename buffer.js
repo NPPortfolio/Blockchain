@@ -399,7 +399,7 @@ function create256BitTargetBuffer(num_leading_zeroes) {
  * 
  * @returns {String} The padded hex string 
  */
-function toByteLengthHexString(num, byteLength) {
+function intToByteLengthHexString(num, byteLength) {
     // 4 bits to a hex character, so byteLength * 2
     return num.toString(16).padStart(byteLength * 2, '0');
 }
