@@ -23,7 +23,7 @@ class Transaction {
         //return await hashString(concat);
     }
 
-    async rawDataString(utxo_db) {
+    rawDataString(utxo_db) {
 
         let concat = '';
 
@@ -65,14 +65,14 @@ class TXInput {
 
     constructor(tx_id, tx_index, pub_key, signature) {
         this.tx_id = tx_id; // 32 byte hash string
-        this.tx_index = tx_index; // four bytes
-        this.pub_key = pub_key; // the public key corresponding to the private key used to make the signature
-        this.signature = signature;
+        this.tx_index = tx_index; // 4 bytes
+        this.pub_key = pub_key; // 32 byte public key corresponding to the private key used to make the signature
+        this.signature = signature; // 64 bytes
     }
 
     async dataString() {
         //previous id + index + scriptSig
-        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + BUFtoHEX(await window.crypto.subtle.exportKey('raw', this.pub_key)) + this.signature; // + ...
+        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + BUFtoHEX(await window.crypto.subtle.exportKey('raw', this.pub_key)) + BUFtoHEX(this.signature); // + ...
     }
 
     rawDataString(utxo_db) {
@@ -92,7 +92,7 @@ class TXOutput {
     }
 
     dataString(){
-        return this.amount + this.pub_key_hash;
+        return intToByteLengthHexString(this.amount, 8) + this.pub_key_hash;
     }
 }
 
@@ -142,8 +142,8 @@ async function createTransactionData(raw_inputs, new_outputs, utxo_db, private_k
     raw_transaction_data += num_outputs_hex;
     
     for(let i = 0; i < new_outputs.length; i++){
-        raw_transaction_data += new_outputs.dataString();
-        saved_output_string += new_outputs.dataString();
+        raw_transaction_data += new_outputs[i].dataString();
+        saved_output_string += new_outputs[i].dataString();
     }
 
     let raw_transaction_data_hash = await hashBuffer(HEXtoBUF(raw_transaction_data));
@@ -159,7 +159,7 @@ async function createTransactionData(raw_inputs, new_outputs, utxo_db, private_k
     for(let i = 0; i < raw_inputs.length; i++){
         raw_inputs[i].signature = tx_signature;
         raw_inputs[i].pub_key = public_key;
-        final_transaction_data += raw_inputs[i].dataString();
+        final_transaction_data += await raw_inputs[i].dataString();
     }
 
     final_transaction_data += saved_output_string;
@@ -167,7 +167,7 @@ async function createTransactionData(raw_inputs, new_outputs, utxo_db, private_k
     return final_transaction_data;
 }
 
-// decode the transaction hex string, simple for now but need to account for multiple inputs and outputs eventually
+// decode the transaction hex string
 function transactionObjectFromData(tx_data){
 
     let tx = {
@@ -261,10 +261,17 @@ async function verifyTransaction(tx, utxo_db) {
 
 
 
-
-
-
-(async function () {
+/**
+ * Testing strategy
+ * 
+ * Note: when creating the transaction data it isn't really possible to have an expected string because of the
+ * need to add signatures to the raw data once it is hashed (If the raw data is in a separate function this could change a little).
+ * This function for now is being tested by setting up some scenarios and manually checking the logs of the data,
+ * which is not ideal, but would need a more sophisticated testing environment to use assertions when dealing with
+ * hashes and signatures. The verification can use asserts though because you can set up transactions you know
+ * are valid or invalid.
+ */
+(async function(){
 
     let UTXODB = new Map();
 
@@ -281,23 +288,33 @@ async function verifyTransaction(tx, utxo_db) {
     let pubKeyBuffer = await window.crypto.subtle.exportKey('raw', key_pair.publicKey);
     let pubKeyHash = await hashBuffer(pubKeyBuffer);
 
-    // Create an original utxo for testing purposes
-    let txo_1 = new TXOutput(8, BUFtoHEX(pubKeyHash));
+    // Create some utxo's for testing purposes
+    let utxo_1 = new TXOutput(8, BUFtoHEX(pubKeyHash));
+    let utxo_2 = new TXOutput(10, BUFtoHEX(pubKeyHash));
 
-    let dummy_hash = BUFtoHEX(await hashBuffer(UTF16toBUF('dummy')));
+    let dummy_hash1 = BUFtoHEX(await hashBuffer(UTF16toBUF('dummy1')));
+    let dummy_hash2 = BUFtoHEX(await hashBuffer(UTF16toBUF('dummy2')));
 
-    // index 0 for one output
-    UTXODB.set(dummy_hash + '00000000', txo_1);
+    UTXODB.set(dummy_hash1 + '00000000', utxo_1); // index 0
+    UTXODB.set(dummy_hash2 + '00000001', utxo_2); // index 1
 
+    let txi_1 = new TXInput(dummy_hash1, '00000000', '', ''); // sig and pub key dont matter when creating the transaction
+    let txi_2 = new TXInput(dummy_hash2, '00000001', '', '');
 
-    /*
-    (async function () {
+    let dummy_address = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+    console.assert(dummy_address.length == 64);
 
-        let output = UTXODB.get(dummy_hash + '00000000');
-        let tx = await createTransaction(dummy_hash, '00000000', output.pub_key_hash, output.pub_key_hash, 2, key_pair.privateKey, key_pair.publicKey);
-        console.log(await verifyTransaction(tx, UTXODB));
+    let txo_1 = new TXOutput(18, dummy_address);
+    let txo_2 = new TXOutput(0, dummy_address);
+    let txo_3 = new TXOutput(10, dummy_address);
 
-    })();
-    */
+    // TODO/NOTE: sending one public key makes each scriptsig the same
+    // num inputs > 1, num outputs > 1
+    let tx_data = await createTransactionData([txi_1, txi_2], [txo_1], UTXODB, key_pair.privateKey, key_pair.publicKey);
 
+    // See note in testing strategy section for why this is just a log and not an assertion
+    console.log(tx_data);
+
+    // num inputs = 0, num outputs > 0
+    // Need a separate system for this to be a valid coinbase transaction
 })();
