@@ -138,11 +138,18 @@ function createRawTransactionData(raw_inputs, new_outputs, utxo_db) {
     return raw_transaction_data;
 }
 
-async function createFinalTransactionData(raw_transaction_data, private_key, public_key){
+// TODO: better function would be signRawTransaction, which would need a bit of parsing but not reuse code
+async function createFinalTransactionData(raw_inputs, new_outputs, utxo_db, private_key, public_key){
 
+    /**
+     * Final transaction data:
+     * 
+     * Same as the raw transaction data, with the signature and provided public key replacing the old raw inputs
+     */
     let num_inputs_hex = intToByteLengthHexString(raw_inputs.length, 1);
     let num_outputs_hex = intToByteLengthHexString(new_outputs.length, 1);
 
+    let raw_transaction_data = createRawTransactionData(raw_inputs, new_outputs, utxo_db);
     let raw_transaction_data_hash = await hashBuffer(HEXtoBUF(raw_transaction_data));
     let tx_signature = await signMessage(private_key, raw_transaction_data_hash);
     let final_transaction_data = '';
@@ -156,7 +163,12 @@ async function createFinalTransactionData(raw_transaction_data, private_key, pub
         final_transaction_data += await raw_inputs[i].dataString();
     }
 
-    final_transaction_data += saved_output_string;
+    // This part is repeating the process for the raw transaction data, could parse the string or have a better function setup
+    final_transaction_data += num_outputs_hex;
+
+    for(let i = 0; i < new_outputs.length; i++){
+        final_transaction_data += new_outputs[i].dataString();
+    }
 
     return final_transaction_data;
 }
@@ -236,30 +248,45 @@ async function transactionObjectFromData(tx_data, utxo_db) {
 // is the one that verifies all of the hashes, signatures, etc without outside influence
 async function verifyFinalTransactionData(tx, utxo_db) {
 
-    // Things this function needs to do: (can split up in future)
+    let tx_obj = await transactionObjectFromData(tx);
 
-    // To check if its valid:
-
-    // could check for input amount >= output amount first to fail fast
-    // Hash the raw string to get the transaction id
-    // for each input,
-        // make sure the utxo is in the database, and it isn't unspent (TODO)
-        // verifyMessage(public_key, signature, transaction id)
-        // hash(public_key) = utxo.pub_key_hash (pay to pub key hash only project), this would be running the script with inputs in biutcoin
-
-    // If it's valid:
-  
-    // add all the outputs to the utxo_db
-    // Mark used utxo's as spent?
-
-    let tx_obj = transactionObjectFromData(tx);
-
+    // check for overspending first to fail fast
     if(tx_obj.totalInputAmount() < tx_obj.totalOutputAmount()){
         // Specific error codes would be a good idea
         console.log('Error validating transaction: Attempting to spend more coins than the utxo inputs allow');
         return false;
     }
 
+    let raw_transaction_data = createRawTransactionData(tx_obj.inputs, tx_obj.outputs, utxo_db);
+
+    let id = await hashBuffer(BUFtoHEX(raw_transaction_data));
+
+    for(let i = 0; i < tx_obj.inputs.length; i++){
+
+        let utxo = utxo_db.get(tx_obj.inputs[i].dbKey());
+
+        if(utxo === undefined){
+            console.log("Error validating transaction: One of the unspent transactions listed in an input could not be found in the database");
+            return false;
+        }
+
+        // Make sure the raw data of the transaction was signed correctly
+        if(! await verifyMessage(tx_obj.inputs[i].pub_key, tx_obj.inputs[i].signature, id)){
+            // Would need a better error message here
+            console.log("Error validating transaction: One of the inputs to the transaction did not have the correct signature for the transaction")
+            return false;
+        }
+
+        // P2PKH only, need to do a lot of script things here in bitcoin
+        // Also this is not good for privacy, more about this in readme
+        let address_hash = await hashBuffer(await window.crypto.subtle.exportKey('raw', tx_obj.inputs[i].pub_key));
+        if(address_hash != utxo.pub_key_hash){
+            console.log("Error validating transaction: The hash of the public key in the transaction input does not match the pub key hash of the spent utxo");
+            return false;
+        }
+    }
+
+    // At this point the transaction should be valid. TODO: add the outputs to utxo DB? remove used ones?
 }
 
 

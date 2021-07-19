@@ -8,7 +8,7 @@ the buffer.js and crypto.js are the only two files documented so far, more to co
 
 ## Transactions
 
-I got hung up on this part of the project for a little while, but am pieceing together what I think is a more restricted version of the UTXO model that bitcoin uses. A few of the important sources of info I used are listed below:
+I got hung up on this part of the project for a little while, but managed to piece together what I think is a simplified version of the UTXO model that bitcoin uses. A few of the important sources of info I used are listed below:
 
 https://medium.com/@blairlmarshall/how-does-a-bitcoin-transaction-actually-work-1c44818c3996
 

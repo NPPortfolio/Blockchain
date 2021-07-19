@@ -240,8 +240,8 @@ p.then(
         block_list.push(Origin);
         drawTree(Origin);
 
-        A.startMining();
-        B.startMining();
+        //A.startMining();
+        //B.startMining();
 
     },
 
@@ -256,6 +256,8 @@ p.then(
 
 
 //------------------------------RENDERING-----------------------------------------------
+
+// I think I'm going to get rid of all of this and use html elements instead
 
 let gl = createGLContext("blockchain-canvas");
 
