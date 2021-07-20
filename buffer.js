@@ -307,6 +307,24 @@ function BUFtoUTF16(buf) {
 
 
 /**
+ * Tries hashing a random nonce concatenated with the given message against a target
+ * 
+ * @param {String} message A hexadecimal string of the message, for a Block this would be the previous hash, transactions ids, other important things
+ * @param {ArraBuffer} target An ArrayBuffer representing the numerical target that the hash has to be less than 
+ * @returns 
+ */
+async function tryRandomNonce(message, target) {
+
+    // Not very efficient to go from Uint32Array to arraybuffer to string,
+    // but crypto.getRandomValues needs a typed array
+    let nonce = BUFtoHEX(random32bitNonce());
+
+    const digest = await hashBuffer(HEXtoBUF(message + nonce));
+
+    return testProofOfWork(digest, target);
+}
+
+/**
  * Tests whether the given binary hash is less than the given target hash, or in terms of the blockchain, meaning 
  * it has a certain number of leading zeroes defined by the target
  * 

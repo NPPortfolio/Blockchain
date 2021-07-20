@@ -1,24 +1,4 @@
 /**
- * Asynchronously hash a string using SHA-256
- * 
- * @param {string} str The string to be hashed
- * @returns {Promise} Once the digest is complete and the promise fulfilled, 
- * the successful result is the ArrayBuffer representing the 32 byte hash of the string
- */
- async function hashUTF16String(str) {
-
-    let buffer = UTF16toBUF(str);
-    const digest = await window.crypto.subtle.digest('SHA-256', buffer);
-
-    return digest;
-}
-/**
- * Testing strategy
- * 
- * The testing for UTF16toBUF in buffer.js should be enough for this function, the other line is the window's crypto function
- */
-
-/**
  * Hashes an ArrayBuffer using SHA-256
  * 
  * @param {ArrayBuffer} buf the buffer to hash 
@@ -148,14 +128,13 @@ async function verifyMessage(publicKey, signature, data) {
 
 /**
  * Create a Uint32Array of length 1 representing a randomized sequence of 32 bits
- * Might (Probably) want to change this to return the ArrayBuffer for small convenience
  * 
- * @returns {Uint32Array} The randomized bits
+ * @returns {ArrayBuffer} The randomized bits in an ArrayBuffer
  */
  function random32bitNonce() {
     let nonce = new Uint32Array(1);
     window.crypto.getRandomValues(nonce);
-    return nonce;
+    return nonce.buffer;
 }
 /**
  * Testing strategy

@@ -14,13 +14,6 @@ class Block {
 
         this.children = [];
 
-
-
-        // rendering
-        this.nd_coords = null;
-
-        this.merkle_root = null;
-
     }
 
     // This is the data that is hashed to give each block a unique hash, can add more stuff to it as I go
@@ -57,7 +50,6 @@ class Block {
                 'previous_hash',
                 'message',
                 'nonce',
-                'merkle_root'
 
             ], 4);
     }
