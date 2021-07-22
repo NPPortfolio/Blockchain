@@ -6,12 +6,7 @@ body{
     overflow: hidden;
 }
 
-.block{
-    height: 128px;
-    width: 256px;
-}
-
-#blockchain-canvas{
+#blockchain{
 
     /*background-color: burlywood;*/
     width: 60%;
@@ -19,11 +14,19 @@ body{
     float: left;
 }
 
-#json-window{
+#transaction-info{
     width: 40%;
     height: 100%;
     float: right;
-    background-color:darkgoldenrod;
-    margin: 0;
+}
+
+#UTXODB{
+    background-color:chartreuse;
+    height: 60%;
+}
+
+#pending-transactions{
+    background-color: cyan;
+    height: 40%;
 }
 

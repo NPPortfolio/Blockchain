@@ -9,20 +9,23 @@
 </head>
 
 <body>
-    
-    <canvas width = 1200 height = 900 id='blockchain-canvas'></canvas>
-    <pre id = 'json-window'></pre>
+
+    <div id='blockchain'></div>
+    <div id='transaction-info'>
+        <div id='UTXODB'></div>
+        <div id='pending-transactions'></div>
+    </div>
 
     <!--header files-->
-    <script src = 'crypto.js'></script>
-    <script src = 'buffer.js'></script>
+    <script src='crypto.js'></script>
+    <script src='buffer.js'></script>
 
     <!--class files-->
-    <script src = 'Block.js'></script>
-    <script src = 'Transaction.js'></script>
+    <script src='Block.js'></script>
+    <script src='Transaction.js'></script>
 
     <!--main-->
-    <script src = app.js></script>
+    <script src=app.js></script>
 </body>
 
 </html>
