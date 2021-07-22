@@ -6,6 +6,22 @@ body{
     overflow: hidden;
 }
 
+p{
+    margin: 2px;
+}
+
+h1{
+    margin: 3px;
+    text-align: center;
+    font-size: medium;
+}
+
+.Block{
+    background-color: cornsilk;
+    border: 2px solid black;
+    border-radius: 5px;
+}
+
 #blockchain{
 
     /*background-color: burlywood;*/

@@ -36,6 +36,29 @@ class Transaction {
         }
     }
 
+    async htmlString(){
+
+        let internal = '';
+
+        for(let i = 0; i < this.inputs.length; i++){
+            internal += this.inputs[i].htmlString();
+        }
+
+        for(let i = 0; i < this.outputs.length; i++){
+            internal += this.outputs[i].htmlString();
+        }
+
+        let final = 
+        '<div class = \'transaction\'>' +
+
+        internal +
+
+        '</div>'
+        ;
+
+        return final;
+    }
+
     async createHashID() {
         this.id = await hashBuffer(HEXtoBUF(this.dataString()));
         return this.id;
@@ -72,11 +95,26 @@ class TXInput {
 
     async dataString() {
         //previous id + index + scriptSig
-        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + BUFtoHEX(await window.crypto.subtle.exportKey('raw', this.pub_key)) + BUFtoHEX(this.signature); // + ...
+        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + cryptoKeyToHex(this.pub_key) + BUFtoHEX(this.signature); // + ...
     }
 
     rawDataString(utxo_db) {
         return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + utxo_db.get(this.dbKey()).pub_key_hash;
+    }
+
+    async htmlString() {
+
+        let x =
+
+        '<div class = \'transaction-input\'>' +
+            '<p>Previous TXID: ' + this.tx_id + '</p>' +
+            '<p>Previous UTXO index: ' + intToByteLengthHexString(this.tx_index) + '</p>' +
+            '<p>Signer\'s Public Key: ' + BUFtoHEX(await window.crypto.subtle.exportKey('raw', this.pub_key)) + '</p>' +
+            '<p>Signature: ' + BUFtoHEX(this.signature); + '</p>' +
+        '</div>'
+        ;
+
+        return x;
     }
 
     dbKey() {
@@ -91,8 +129,20 @@ class TXOutput {
         this.pub_key_hash = pub_key_hash;
     }
 
+    hmtlString() {
+
+        let x =
+            '<div class = \'transaction-output\'>' +
+            '<p>Amount: ' + this.amount + '</p>' +
+            '<p>Address: ' + this.pub_key_hash + '</p>' +
+            '</div>'
+            ;
+        
+        return x;
+    }
+
     dataString() {
-        return intToByteLengthHexString(this.amount, 8) + this.pub_key_hash;
+        return intToByteLengthHexString(this.amount, 8) + BUFtoHEX(this.pub_key_hash);
     }
 }
 
@@ -139,7 +189,7 @@ function createRawTransactionData(raw_inputs, new_outputs, utxo_db) {
 }
 
 // TODO: better function would be signRawTransaction, which would need a bit of parsing but not reuse code
-async function createFinalTransactionData(raw_inputs, new_outputs, utxo_db, private_key, public_key){
+async function createFinalTransactionData(raw_inputs, new_outputs, utxo_db, private_key, public_key) {
 
     /**
      * Final transaction data:
@@ -166,7 +216,7 @@ async function createFinalTransactionData(raw_inputs, new_outputs, utxo_db, priv
     // This part is repeating the process for the raw transaction data, could parse the string or have a better function setup
     final_transaction_data += num_outputs_hex;
 
-    for(let i = 0; i < new_outputs.length; i++){
+    for (let i = 0; i < new_outputs.length; i++) {
         final_transaction_data += new_outputs[i].dataString();
     }
 
@@ -251,7 +301,7 @@ async function verifyFinalTransactionData(tx, utxo_db) {
     let tx_obj = await transactionObjectFromData(tx);
 
     // check for overspending first to fail fast
-    if(tx_obj.totalInputAmount() < tx_obj.totalOutputAmount()){
+    if (tx_obj.totalInputAmount() < tx_obj.totalOutputAmount()) {
         // Specific error codes would be a good idea
         console.log('Error validating transaction: Attempting to spend more coins than the utxo inputs allow');
         return false;
@@ -261,17 +311,17 @@ async function verifyFinalTransactionData(tx, utxo_db) {
 
     let id = await hashBuffer(BUFtoHEX(raw_transaction_data));
 
-    for(let i = 0; i < tx_obj.inputs.length; i++){
+    for (let i = 0; i < tx_obj.inputs.length; i++) {
 
         let utxo = utxo_db.get(tx_obj.inputs[i].dbKey());
 
-        if(utxo === undefined){
+        if (utxo === undefined) {
             console.log("Error validating transaction: One of the unspent transactions listed in an input could not be found in the database");
             return false;
         }
 
         // Make sure the raw data of the transaction was signed correctly
-        if(! await verifyMessage(tx_obj.inputs[i].pub_key, tx_obj.inputs[i].signature, id)){
+        if (! await verifyMessage(tx_obj.inputs[i].pub_key, tx_obj.inputs[i].signature, id)) {
             // Would need a better error message here
             console.log("Error validating transaction: One of the inputs to the transaction did not have the correct signature for the transaction")
             return false;
@@ -280,7 +330,7 @@ async function verifyFinalTransactionData(tx, utxo_db) {
         // P2PKH only, need to do a lot of script things here in bitcoin
         // Also this is not good for privacy, more about this in readme
         let address_hash = await hashBuffer(await window.crypto.subtle.exportKey('raw', tx_obj.inputs[i].pub_key));
-        if(address_hash != utxo.pub_key_hash){
+        if (address_hash != utxo.pub_key_hash) {
             console.log("Error validating transaction: The hash of the public key in the transaction input does not match the pub key hash of the spent utxo");
             return false;
         }
@@ -383,20 +433,20 @@ async function createTransactionData(raw_inputs, new_outputs, utxo_db, private_k
 
     /*
      * Raw Transaction Data:
-     * 
+     *
      * 1 byte integer for number of inputs
      * for each input:
      * 32 byte hash of the transaction you want to redeem an output from
      * 4 byte field of the index of the output from the above transaction
      * 32 byte pub key hash of the utxo's address
-     * ^^ From the stack overflow link: "For the purpose of signing the transaction, 
+     * ^^ From the stack overflow link: "For the purpose of signing the transaction,
      * the scriptPubKey of the output we want to redeem is filled as the temporary script sig"
-     * 
+     *
      * 1 byte integer for number of outputs
      * for each output:
      * 8 byte field for the amount of "satoshis" to send
      * 32 byte address hash to send the "satoshis" to
-    
+
     let raw_transaction_data = '';
 
     let num_inputs_hex = intToByteLengthHexString(raw_inputs.length, 1);

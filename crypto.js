@@ -123,6 +123,17 @@ async function verifyMessage(publicKey, signature, data) {
     // ...
 })();
 
+/**
+ * 
+ * @returns 
+ */
+async function KEYtoBUF(key){
+    return await window.crypto.subtle.exportKey('raw', key);
+}
+
+
+
+
 
 
 

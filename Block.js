@@ -25,8 +25,8 @@ class Block {
         return this.hash;
     }
 
-    async createHash(){
-        this.hash = hashBuffer(UTF16toBUF(this.getHeader()));
+    async createHash() {
+        this.hash = BUFtoHEX(await hashBuffer(UTF16toBUF(this.getHeader())));
     }
 
     addChild(block) {
@@ -42,7 +42,7 @@ class Block {
         }
     }
 
-    customJSONString(){
+    customJSONString() {
         return JSON.stringify(this,
             [
                 'hash',
@@ -51,5 +51,22 @@ class Block {
                 'nonce',
 
             ], 4);
+    }
+
+    HTMLString() {
+
+        let x =
+
+            '<div class = \'Block\'>' +
+            '<h1>Block</h1>' +
+            '<p>Hash: ' + this.hash + '</p>' +
+            '<p>Previous Hash: ' + this.previous_hash + '</p>' +
+            '<p>Transactions Concat Hash: ' + this.message + '</p>' + // to be changed
+            '<p>Nonce: ' + this.nonce + '</p>' +
+            '</div>'
+
+            ;
+
+        return x;
     }
 }

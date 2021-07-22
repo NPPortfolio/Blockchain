@@ -26,5 +26,11 @@ Loosely used for verifying transactions
 
 
 
+## Notes
 Things that pop up from restricting to P2PKH:
+
 Notes about needing to pass around the UTXODB and keep track of unspent UTXOs
+
+No merkle trees, only concatenation of transaction hashes hashed
+
+no forks
