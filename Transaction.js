@@ -36,23 +36,26 @@ class Transaction {
         }
     }
 
-    async htmlString(){
+    async HTMLString(){
 
-        let internal = '';
+        let input_string = '';
+        let output_string = '';
 
         for(let i = 0; i < this.inputs.length; i++){
-            internal += this.inputs[i].htmlString();
+            input_string += await this.inputs[i].HTMLString();
         }
 
         for(let i = 0; i < this.outputs.length; i++){
-            internal += this.outputs[i].htmlString();
+            output_string += this.outputs[i].HTMLString();
         }
 
         let final = 
         '<div class = \'transaction\'>' +
-
-        internal +
-
+        '<p>Hash (ID): ' + this.id + 
+        '<p>Inputs: </p>' + 
+        input_string +
+        '<p>Outputs: </p>' +
+        output_string +
         '</div>'
         ;
 
@@ -110,7 +113,7 @@ class TXInput {
         return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + utxo_db.get(this.dbKey()).pub_key_hash;
     }
 
-    async htmlString() {
+    async HTMLString() {
 
         let x =
 
@@ -138,12 +141,12 @@ class TXOutput {
         this.spent = false; // Testing this for the UTXODB, some problems with it
     }
 
-    hmtlString() {
+    HTMLString() {
 
         let x =
             '<div class = \'transaction-output\'>' +
             '<p>Amount: ' + this.amount + '</p>' +
-            '<p>Address: ' + this.pub_key_hash + '</p>' +
+            '<p>Address: ' + BUFtoHEX(this.pub_key_hash) + '</p>' +
             '</div>'
             ;
         
@@ -296,6 +299,25 @@ async function transactionObjectFromData(tx_data, utxo_db) {
     // Need to recreate the raw data without the signatures and with the temporary pub key hashes from utxo_db
     let raw_transaction_data = createRawTransactionData(obj.inputs, obj.outputs, utxo_db);
     tx.hash = await hashBuffer(HEXtoBUF(raw_transaction_data));
+
+    return tx;
+
+}
+
+async function createTransactionFromObjects(inputs, outputs){
+
+
+    let tx = new Transaction();
+
+    inputs.forEach(e => {
+        tx.addInput(e);
+    });
+
+    outputs.forEach(e =>{
+        tx.addOutput(e);
+    });
+
+    await tx.createHashID();
 
     return tx;
 

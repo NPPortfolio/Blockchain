@@ -1,6 +1,6 @@
 let STATE = {
     blocks: [],
-    pending_transactions: [],
+    transactions: [],
     UTXODB: new Map()
 };
 
@@ -35,18 +35,13 @@ let STATE = {
     let address1 = await hashBuffer(await KEYtoBUF(keypair1.publicKey));
     let address2 = await hashBuffer(await KEYtoBUF(keypair2.publicKey));
 
-    let coinbase_tx = new Transaction();
     let coinbase_output1 = new TXOutput(10, address1);
     let coinbase_output2 = new TXOutput(5, address2);
-
-    coinbase_tx.addOutput(coinbase_output1);
-    coinbase_tx.addOutput(coinbase_output2);
-
-    await coinbase_tx.createHashID();
-
+    let coinbase_tx = await createTransactionFromObjects([], [coinbase_output1, coinbase_output2]);
     coinbase_tx.addOutputsToUTXODB(STATE.UTXODB);
 
     STATE.blocks.push(Origin);
+    STATE.transactions.push(coinbase_tx);
 
     renderState(STATE);
 })();
@@ -58,18 +53,18 @@ function setNewOrigin(state, Block) {
     state.blocks.push(Block);
 }
 
-function renderState(state) {
+async function renderState(state) {
 
     document.getElementById('blockchain').innerHTML = '';
-    document.getElementById('pending-transactions').innerHTML = '';
+    document.getElementById('transactions').innerHTML = '';
 
     state.blocks.forEach(element => {
         document.getElementById('blockchain').innerHTML += element.HTMLString();
     });
 
-    state.pending_transactions.forEach(element => {
-        document.getElementById('pending-transactions').innerHTML += element.HTMLString();
-    });
+    for(let i = 0; i < state.transactions.length; i++){
+        document.getElementById('transactions').innerHTML += await state.transactions[i].HTMLString();
+    }
 
     document.getElementById('UTXODB').innerHTML = mapToHTML(state.UTXODB);
 }

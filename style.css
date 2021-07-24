@@ -9,23 +9,34 @@ body{
 p{
     margin: 0px;
     margin-bottom: 2px;
+    word-wrap: break-word;
 }
 
 h1{
     margin: 0px;
     text-align: center;
     font-size: medium;
-    background-color: grey;
+    background-color: lightgrey;
 }
 
 .Block{
     background-color: lightgoldenrodyellow;
-    border-bottom: 1px solid grey;
+    border-bottom: 1px solid black;
   
 }
 
 .utxo{
-    border-bottom: 1px solid grey;
+    border-bottom: 1px solid black;
+}
+
+.transaction-output{
+    position:relative;
+    left: 8px;
+    border-bottom: 1px dotted grey;
+}
+
+.transaction{
+    border-bottom: 1px solid black;
 }
 
 #blockchain-div{
@@ -44,11 +55,11 @@ h1{
 
 #UTXODB{
     background-color:chartreuse;
-    height: 60%;
+    height: 40%;
 }
 
-#pending-transactions{
+#transactions{
     background-color: cyan;
-    height: 40%;
+    height: 60%;
 }
 
