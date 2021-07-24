@@ -58,7 +58,6 @@ class Block {
         let x =
 
             '<div class = \'Block\'>' +
-            '<h1>Block</h1>' +
             '<p>Hash: ' + this.hash + '</p>' +
             '<p>Previous Hash: ' + this.previous_hash + '</p>' +
             '<p>Transactions Concat Hash: ' + this.message + '</p>' + // to be changed

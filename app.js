@@ -4,7 +4,7 @@ let STATE = {
     UTXODB: new Map()
 };
 
-(async function main(){
+(async function main() {
 
     let Origin = new Block();
     Origin.message = 'ORIGIN';
@@ -21,7 +21,7 @@ let STATE = {
         true,
         ["sign", "verify"]
     );
-    
+
     let keypair2 = await window.crypto.subtle.generateKey(
         {
             name: "ECDSA",
@@ -42,34 +42,49 @@ let STATE = {
     coinbase_tx.addOutput(coinbase_output1);
     coinbase_tx.addOutput(coinbase_output2);
 
-    //coinbase_tx.addOutputsToUTXODB(UTXODB);
+    await coinbase_tx.createHashID();
+
+    coinbase_tx.addOutputsToUTXODB(STATE.UTXODB);
 
     STATE.blocks.push(Origin);
 
     renderState(STATE);
 })();
 
-function setNewOrigin(state, Block){
+function setNewOrigin(state, Block) {
     state.blocks = [];
     state.pending_transactions = [];
     state.UTXODB = [];
     state.blocks.push(Block);
 }
 
-function renderState(state){
+function renderState(state) {
+
+    document.getElementById('blockchain').innerHTML = '';
+    document.getElementById('pending-transactions').innerHTML = '';
 
     state.blocks.forEach(element => {
-        document.getElementById('blockchain').innerHTML = '';
         document.getElementById('blockchain').innerHTML += element.HTMLString();
     });
 
     state.pending_transactions.forEach(element => {
-        document.getElementById('blockchain').innerHTML += element.HTMLString();
+        document.getElementById('pending-transactions').innerHTML += element.HTMLString();
     });
 
     document.getElementById('UTXODB').innerHTML = mapToHTML(state.UTXODB);
 }
 
-function mapToHTML(map){
+function mapToHTML(map) {
 
+    let inner = '';
+
+    map.forEach((value, key) => {
+        inner += '<div class = utxo>' +
+            '<p> TXID: ' + key.substr(0, 64) + '</p>' + // 32 byte transaction hash in hex
+            '<p> UTXO Index: ' + key.substr(64, 8) + '</p>' + // 4 byte utxo index
+            // The rest of the info (amount and address) can be found from the list of transactions, probably want to repeat here though
+            '</div>';
+    });
+
+    return inner;
 }

@@ -60,7 +60,7 @@ class Transaction {
     }
 
     async createHashID() {
-        this.id = await hashBuffer(HEXtoBUF(this.dataString()));
+        this.id = BUFtoHEX(await hashBuffer(HEXtoBUF(this.dataString())));
         return this.id;
     }
 
@@ -81,6 +81,14 @@ class Transaction {
         }
 
         return total;
+    }
+
+    addOutputsToUTXODB(utxodb){
+        
+        for(let i = 0; i < this.outputs.length; i++){
+            // I might need to be careful here with the outputs[i] object reference, may need to copy the object
+            utxodb.set(this.id + intToByteLengthHexString(i, 4), this.outputs[i]);
+        }
     }
 }
 
@@ -127,6 +135,7 @@ class TXOutput {
     constructor(amount, pub_key_hash) {
         this.amount = amount;
         this.pub_key_hash = pub_key_hash;
+        this.spent = false; // Testing this for the UTXODB, some problems with it
     }
 
     hmtlString() {

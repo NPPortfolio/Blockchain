@@ -1,12 +1,20 @@
 # Blockchain
-Undecided blockchain app
 
-In progress blockchain app, if anyone is checking this because of the code quality message on the main portfolio page
-the buffer.js and crypto.js are the only two files documented so far, more to come.
+## Important Notes
+In Progress note: This is written like the basic project is fully complete and documented which it isn't right now
+
+The main reason I started working on this project was to learn more about the blockchain and cryptocurrencies. I wasn't sure what exactly to use them for in a portfolio project, but wanted to have the basics written in code as I learned. After working through the specifics of implementing a blockchain and currency with transactions, I'm deciding to either stop or halt the project (depending on whether I come back to it) as just a basic implementation.
+
+In terms of blockchain technology there is a lot more to implement, but many of these I would rather just read about than put into code. Whether it is because they are a lot more involved work, deal with another complicated field (especially distributed systems to deal with forks, the UTXO database, propagating transactions and all that), or don't translate well into a personal portfolio project (advancements other people have done that are good to know about etc.), I've decided to leave them out for now.
+
+That being said, one thing this project can do if it doesn't do anything that interesting with cryptocurrency is emphasize code quality and documentation, something the first project is lacking. To help with this I cut down on a lot of code that I started to implement that are either in the category above (multiple users handling mining results, forks in the chain as a tree) or are related to user interaction in the window that is harder to test and document.
+
+This trimming down means that the only thing that will be seen on the portfolio page is an html rendering of the blockchain in a certain state that I've constructed in the main app.js. This could become something like a basic viewer that shows a blockchain in a state in a readable way, but again to go further with this idea would require a lot more things like testing environments, or ways for the user to manually change parts of the transactions or blocks to see how they are invalidated or validated. These are useful things, but I would rather continue and work on some other projects than spend too much time on features.
+
+## Some Notes about the Implementation (maybe not needed)
 
 
-
-## Transactions
+### Transactions
 
 I got hung up on this part of the project for a little while, but managed to piece together what I think is a simplified version of the UTXO model that bitcoin uses. A few of the important sources of info I used are listed below:
 
