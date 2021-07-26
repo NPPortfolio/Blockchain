@@ -323,54 +323,98 @@ async function createTransactionFromObjects(inputs, outputs){
 
 }
 
-// Writing this to verify it only if it hasnt been processed yet - utxo vs all txo db
+/**
+ * Verifies a transaction in the context of the given utxo database
+ * 
+ * @param {Transaction} tx The transaction object to verify 
+ * @param {Map} utxo_db The database of the utxos that the transaction uses as inputs
+ *   
+ * @returns True if the transaction is valid for the given database, false otherwise 
+ */
+async function verifyTransaction(tx, utxodb) {
 
-// The main point here is that the final transaction data would be the data that is sent to some node to verify, so this function
-// is the one that verifies all of the hashes, signatures, etc without outside influence
-async function verifyFinalTransactionData(tx, utxo_db) {
+    let total_input_amount = 0; // There could be a totalInputAmount() where you pass the utxodb, not sure if this is good for preformance or not
+    let total_output_amount = tx.totalOutputAmount();
 
-    let tx_obj = await transactionObjectFromData(tx);
-
-    // check for overspending first to fail fast
-    if (tx_obj.totalInputAmount() < tx_obj.totalOutputAmount()) {
-        // Specific error codes would be a good idea
-        console.log('Error validating transaction: Attempting to spend more coins than the utxo inputs allow');
-        return false;
-    }
-
-    let raw_transaction_data = createRawTransactionData(tx_obj.inputs, tx_obj.outputs, utxo_db);
+    let raw_transaction_data = createRawTransactionData(tx.inputs, tx.outputs, utxodb);
 
     let id = await hashBuffer(BUFtoHEX(raw_transaction_data));
 
-    for (let i = 0; i < tx_obj.inputs.length; i++) {
+    for (let i = 0; i < tx.inputs.length; i++) {
 
-        let utxo = utxo_db.get(tx_obj.inputs[i].dbKey());
-
-        if (utxo === undefined) {
-            console.log("Error validating transaction: One of the unspent transactions listed in an input could not be found in the database");
+        if((await verifyTransactionInput(tx.inputs[i], id, utxodb)) == false){
+            console.log("Error validating transaction: One of the inputs could not be validated");
             return false;
         }
 
-        // Make sure the raw data of the transaction was signed correctly
-        if (! await verifyMessage(tx_obj.inputs[i].pub_key, tx_obj.inputs[i].signature, id)) {
-            // Would need a better error message here
-            console.log("Error validating transaction: One of the inputs to the transaction did not have the correct signature for the transaction")
-            return false;
-        }
-
-        // P2PKH only, need to do a lot of script things here in bitcoin
-        // Also this is not good for privacy, more about this in readme
-        let address_hash = await hashBuffer(await window.crypto.subtle.exportKey('raw', tx_obj.inputs[i].pub_key));
-        if (address_hash != utxo.pub_key_hash) {
-            console.log("Error validating transaction: The hash of the public key in the transaction input does not match the pub key hash of the spent utxo");
-            return false;
-        }
+        // At this point the input should be valid
+        // Some performance waste here, researching the database to get the amount, but keeps the return value to a clean boolean
+        total_input_amount += utxodb.get(tx.inputs[i].dbKey()).amount;
     }
 
-    // At this point the transaction should be valid. TODO: add the outputs to utxo DB? remove used ones?
+    // If you need to validate the outputs for any reason you would do it here
+
+
+    if(total_output_amount > total_input_amount){
+        console.log("Error validating transaction: Attempting to spend more coins than the inputs allow");
+        return false;
+    }
+
+    // At this point the transaction should be valid
+    return true;
 }
+/**
+ * Testing strategy
+ * 
+ * total_output_amount: <=> total_input_amount
+ * 
+ * tx.inputs.length: empty, >=1, <=> tx.outputs.length
+ * tx.outputs.length: empty, >=1, <=> tx.inputs.length
+ * 
+ * Test cases for valid inputs are in the verifyTransactionInput function tests
+ * 
+ */
+(async function(){
+
+})();
 
 
+/**
+ * Verifies an input of a transaction
+ * 
+ * @param {TXInput} input The transaction input to verify
+ * @param {ArrayBuffer} txid The id of the transaction that the input is verified to be a part of
+ * @param {Map} utxodb The utxo database that the transaction input spends from
+ * 
+ * @returns {boolean} True if the input is valid, false if invalid
+ */
+async function verifyTransactionInput(input, txid, utxodb){
+
+    let utxo = utxodb.get(input.dbKey());
+
+    if (utxo === undefined) {
+        console.log("Error validating transaction input: The unspent transaction output listed in the input could not be found in the database");
+        return false;
+    }
+
+    // Make sure the raw data of the transaction was signed correctly
+    if (! await verifyMessage(input.pub_key, input.signature, txid)) {
+        // Would need a better error message here
+        console.log("Error validating transaction input: The input did not have the correct signature for the transaction ID")
+        return false;
+    }
+
+    // P2PKH only, need to do a lot of script things here in bitcoin
+    // Also this is not good for privacy, more about this in readme
+    let address_hash = await hashBuffer(await window.crypto.subtle.exportKey('raw', input.pub_key));
+    if (address_hash != utxo.pub_key_hash) {
+        console.log("Error validating transaction input: The hash of the public key in the input does not match the pub key hash of the spent utxo");
+        return false;
+    }
+
+    return true;
+
+}
 
 
 

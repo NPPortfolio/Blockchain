@@ -11,10 +11,13 @@ That being said, one thing this project can do if it doesn't do anything that in
 
 This trimming down means that the only thing that will be seen on the portfolio page is an html rendering of the blockchain in a certain state that I've constructed in the main app.js. This could become something like a basic viewer that shows a blockchain in a state in a readable way, but again to go further with this idea would require a lot more things like testing environments, or ways for the user to manually change parts of the transactions or blocks to see how they are invalidated or validated. These are useful things, but I would rather continue and work on some other projects than spend too much time on features.
 
-## Some Notes about the Implementation (maybe not needed)
+# Notes List: things that aren't implemented but need to be considered
+
+- Asynchronous Safety - The utxo database, mining the right block in the chain, adding transactions to blocks
+- Privacy - There are no measures to prevent the reuse of public key hashes, transaction history can be pieced together and much more
 
 
-### Transactions
+# Transactions
 
 I got hung up on this part of the project for a little while, but managed to piece together what I think is a simplified version of the UTXO model that bitcoin uses. A few of the important sources of info I used are listed below:
 
