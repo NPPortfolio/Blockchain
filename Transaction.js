@@ -89,9 +89,13 @@ class Transaction {
         return final;
     }
 
+    /**
+     * Hashes the final data of the transaction to create the transaction ID. 
+     * Requires Inputs to be final with scriptsigs
+     * 
+     */
     async createHashID() {
         this.id = BUFtoHEX(await hashBuffer(HEXtoBUF(this.dataString())));
-        return this.id;
     }
 
     addInput(tx_input) {
@@ -102,6 +106,11 @@ class Transaction {
         this.outputs.push(tx_output);
     }
 
+    /**
+     * Get the number of coins spent by all outputs in the transaction
+     * 
+     * @returns {integer} The number of coins soent by this transaction
+     */
     totalOutputAmount() {
 
         let total = 0;
@@ -116,7 +125,7 @@ class Transaction {
     addOutputsToUTXODB(utxodb) {
 
         for (let i = 0; i < this.outputs.length; i++) {
-            // I might need to be careful here with the outputs[i] object reference, may need to copy the object
+            // I might need to be careful here with the outputs[i] object reference, may need to copy the object into db
             utxodb.set(this.id + intToByteLengthHexString(i, 4), this.outputs[i]);
         }
     }
@@ -142,7 +151,7 @@ class TXInput {
 
     async dataString() {
         //previous id + index + scriptSig
-        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + cryptoKeyToHex(this.pub_key) + BUFtoHEX(this.signature); // + ...
+        return this.tx_id + intToByteLengthHexString(this.tx_index, 4) + await cryptoKeyToHex(this.pub_key) + BUFtoHEX(this.signature);
     }
 
     rawDataString(utxo_db) {
@@ -220,7 +229,15 @@ class TXOutput {
 
 
 
-
+/**
+ * Creates the raw data of a transaction, where the scriptsigs of the inputs are replaced with the utxo pub key hashes
+ * 
+ * @param {TXInput[]} raw_inputs The list of inputs to the transaction
+ * @param {TXOutput[]} new_outputs The list of outputs of the transaction
+ * @param {Map} utxo_db The UTXO database to get the temporary scriptPubKey from
+ * 
+ * @returns {String} The hexadecimal string of the raw transaction, based on the format specified
+ */
 function createRawTransactionData(raw_inputs, new_outputs, utxo_db) {
 
     /**
@@ -258,14 +275,30 @@ function createRawTransactionData(raw_inputs, new_outputs, utxo_db) {
 
     return raw_transaction_data;
 }
+/**
+ * Testing Strategy
+ */
+(async function(){
 
-// TODO: better function would be signRawTransaction, which would need a bit of parsing but not reuse code
+})();
+
+/**
+ * Creates a data string representing the final transaction, with the inputs' scriptSigs calculated and added
+ * 
+ * @param {TXInput[]} raw_inputs The list of inputs to the transaction
+ * @param {TXOutput[]} new_outputs The list of outputs to the transaction
+ * @param {Map} utxo_db The datbase used to create the raw transaction data, which is signed
+ * @param {CryptoKey} private_key The private key used to sign the raw data
+ * @param {CryptoKey} public_key The corresponding public key added the the scriptSig
+ * 
+ * @returns {String} The hexadecimal string of the final transaction, based on the specified format
+ */
 async function createFinalTransactionData(raw_inputs, new_outputs, utxo_db, private_key, public_key) {
 
     /**
      * Final transaction data:
      * 
-     * Same as the raw transaction data, with the signature and provided public key replacing the old raw inputs
+     * Same as the raw transaction data, with the signature and provided public key replacing the old temp utxo scriptPubKey
     */
 
     let num_inputs_hex = intToByteLengthHexString(raw_inputs.length, 1);
@@ -294,7 +327,12 @@ async function createFinalTransactionData(raw_inputs, new_outputs, utxo_db, priv
 
     return final_transaction_data;
 }
+/**
+ * Testing Strategy
+ */
+ (async function(){
 
+})();
 
 
 /**
